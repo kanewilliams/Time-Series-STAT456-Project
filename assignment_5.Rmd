@@ -1,0 +1,102 @@
+---
+title: "Assignment 5 - Decomposing New Zealand wholesale electricity prices using stl() and str()"
+author:
+  - name: Kane Williams (pkw21@uclive.ac.nz)
+link-citations: true
+subtitle: STAT456-24S2 - Time Series and Stochastic Processes
+header-includes:
+   - \usepackage{amsmath}
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    highlight: tango
+    theme: flatly
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{=html}
+<style>
+
+.boxTask {
+background-color: lightblue;
+color: black;
+border: 2px solid black;
+margin: 5px;
+padding: 5px;
+font-style: italic;
+}
+
+/* Centered headings */
+h1, h2, h3, h4, h5, h6 {
+  text-align: center;
+}
+
+</style>
+```
+
+
+```{r echo=FALSE}
+source("./src/packages.R")
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+```
+
+```{=html}
+<style>
+
+.boxTask {
+background-color: lightblue;
+color: black;
+border: 2px solid black;
+margin: 5px;
+padding: 5px;
+font-style: italic;
+}
+
+/* Centered headings */
+h1, h2, h3, h4, h5, h6 {
+  text-align: center;
+}
+
+</style>
+```
+
+In this assignment/project, New Zealand's wholesale electricity prices will be decomposed using two different methods. The results and the residuals will be compared.
+
+# Introduction
+
+## New Zealand's Wholesale electricity market
+
+New Zealand's electricity market was liberalised in BLA BLA.
+
+## Introduction to stl() and str()
+
+stl() is an R package that allows decomposing a time series into two components.
+
+str() is a recent R package by ...
+
+::: boxTask
+Bla bla ba
+:::
+
+The dataset chosen in the previous assignment was: **Quarterly Total
+number of visitor arrivals**.
+
+-   It was pulled from [Infoshare](https://infoshare.stats) with the
+    following parameters:
+    -   **Group**: International Travel and Migration - ITM
+    -   **Table**: New Zealand Visitor arrival totals
+        (Qrtly-Mar/Jun/Sep/Dec)
+    -   **Count Type**: **Actual Counts** - consisting of raw count data
+    -   **Date Range**: 1921Q2 -\> 2024Q1 - covering a period of
+        approximately 103 years
+
+# Decomposition using stl()
+
+It was found that ...
+
+# Decomposition using str()
+
+Bla bla bla...
