@@ -96,7 +96,7 @@ The dataset chosen was: **Wholesale price trends**.
 file_path <- "./data/NZ_Wholesale_Electricity_Prices_2014-2024.csv"
 header <- c("Period_Start", "Period_End", "Region_ID", "Region", "Price")
 
-csv_data <- read_csv(file_path, 
+raw_data <- read_csv(file_path, 
                      skip = 12, 
                      col_names = header,
                      show_col_types = FALSE) %>%
@@ -105,29 +105,66 @@ csv_data <- read_csv(file_path,
     Period_Start = dmy_hms(Period_Start),
     Period_End = dmy_hms(Period_End)
   )
+```
 
-head(csv_data, 3)
+```{r}
+# FILTER DATA (for ease of use)
+
+use_hourly = 1
+use_only_one_year = 1
+
+filtered_data <- raw_data %>%
+  # Select hourly (instead of half-hourly)
+  dplyr::filter(if (use_hourly == 1) row_number() %% 2 == 1 else TRUE) %>%
+  # Select relevant columns
+  dplyr::select(Period_Start, Price) %>%
+  # Only one year
+  dplyr::filter(if (use_only_one_year == 1) year(Period_Start) == 2023 else TRUE)
+
+head(filtered_data, 3)
 ```
 
 
 ```{r}
 # CREATE ts OBJECT
-frequency <- 2 * 24 * 365.25  # Half-hourly data for a year
+frequency <- 24  # Hourly data for a year
 
-elec_ts <- ts(csv_data$Price, 
-                     start = c(2014, 1), 
-                     end = c(2024, 1),
+elec_ts <- ts(filtered_data$Price, 
+                     start = c(2023, 1), 
                      frequency = frequency)
 
 # Print first few rows to verify
 print(head(elec_ts))
 ```
 
+```{r}
+# Create TSIBBLE object
+elec_tsibble <- tsibble(
+  Datetime = filtered_data$Period_Start,
+  Price = filtered_data$Price,
+  index = Datetime
+)
+
+print(head(elec_tsibble))
+print(range(elec_tsibble$Datetime))
+```
+
+`tsibble` conveniently loads half-hourly data, where `ts` struggles.
 
 # Decomposition using stl()
 
 ```{r}
-# TODO: stl
+# plot(stl(elec_ts, s.window=168))
+```
+
+```{r}
+
+# # STL decomposition
+# stl_decomp <- elec_tsibble %>%
+#   model(STL(Price ~ season(period = "day") + season(period = "week") + season(period = "year")))
+# 
+# # Plot the decomposition
+# components(stl_decomp) %>% autoplot()
 ```
 
 
@@ -135,4 +172,19 @@ It was found that ...
 
 # Decomposition using str()
 
+```{r}
+# TODO
+
+```
+
 Bla bla bla...
+
+# Bibliography
+
+https://otexts.com/fpp2/complexseasonality.html
+
+https://cran.r-project.org/web/packages/stR/vignettes/stRvignette.html
+
+https://www.wessa.net/download/stl.pdf
+
+
