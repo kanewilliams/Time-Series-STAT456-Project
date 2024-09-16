@@ -81,19 +81,55 @@ str() is a recent R package by ...
 Bla bla ba
 :::
 
-The dataset chosen in the previous assignment was: **Quarterly Total
-number of visitor arrivals**.
+# Data Import
 
--   It was pulled from [Infoshare](https://infoshare.stats) with the
+The dataset chosen was: **Wholesale price trends**.
+
+-   It was pulled from the [Electricity Authority](https://www.emi.ea.govt.nz/Wholesale/Reports/W_P_C?DateFrom=20140101&DateTo=20240101&RegionType=NZ&TimeScale=DAY&_si=_dr_DateFrom|20140101,_dr_DateTo|20240101,_dr_RegionType|NZ,_dr_TimeScale|TP,v|4) with the
     following parameters:
-    -   **Group**: International Travel and Migration - ITM
-    -   **Table**: New Zealand Visitor arrival totals
-        (Qrtly-Mar/Jun/Sep/Dec)
-    -   **Count Type**: **Actual Counts** - consisting of raw count data
-    -   **Date Range**: 1921Q2 -\> 2024Q1 - covering a period of
-        approximately 103 years
+    -   **Date Range**: 01 Jan 2014 - 01 Jan 2024
+    -   **Region Type**: New Zealand
+    -   **Time Scale** Trading Period (i.e. half-hourly data)
+
+```{r}
+# READ DATA
+file_path <- "./data/NZ_Wholesale_Electricity_Prices_2014-2024.csv"
+header <- c("Period_Start", "Period_End", "Region_ID", "Region", "Price")
+
+csv_data <- read_csv(file_path, 
+                     skip = 12, 
+                     col_names = header,
+                     show_col_types = FALSE) %>%
+  mutate(
+    Price = as.numeric(Price),
+    Period_Start = dmy_hms(Period_Start),
+    Period_End = dmy_hms(Period_End)
+  )
+
+head(csv_data, 3)
+```
+
+
+```{r}
+# CREATE ts OBJECT
+frequency <- 2 * 24 * 365.25  # Half-hourly data for a year
+
+elec_ts <- ts(csv_data$Price, 
+                     start = c(2014, 1), 
+                     end = c(2024, 1),
+                     frequency = frequency)
+
+# Print first few rows to verify
+print(head(elec_ts))
+```
+
 
 # Decomposition using stl()
+
+```{r}
+# TODO: stl
+```
+
 
 It was found that ...
 
