@@ -127,7 +127,7 @@ head(filtered_data, 3)
 
 ```{r}
 # CREATE ts OBJECT
-frequency <- 24  # Hourly data for a year
+frequency <- 24 * 7 * 4 # Month
 
 elec_ts <- ts(filtered_data$Price, 
                      start = c(2023, 1), 
@@ -154,7 +154,7 @@ print(range(elec_tsibble$Datetime))
 # Decomposition using stl()
 
 ```{r}
-# plot(stl(elec_ts, s.window=168))
+stl(elec_ts, s.window=24*7) %>% autoplot
 ```
 
 ```{r}
