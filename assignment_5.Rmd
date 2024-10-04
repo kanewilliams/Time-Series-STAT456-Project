@@ -1,99 +1,111 @@
 ---
-title: "Assignment 5 - Decomposing New Zealand wholesale electricity prices using stl() and str()"
+title: "Assignment 5 - Decomposing New Zealand Electrical Demand using stl() and str()"
 author:
-  - name: Kane Williams (pkw21@uclive.ac.nz)
-link-citations: true
-subtitle: STAT456-24S2 - Time Series and Stochastic Processes
-header-includes:
-   - \usepackage{amsmath}
+- name: Kane Williams (pkw21@uclive.ac.nz)
 output:
+  pdf_document:
+    toc: true
   html_document:
     toc: true
     toc_float: true
     highlight: tango
     theme: flatly
+header-includes: \usepackage{amsmath}
+subtitle: "STAT456-24S2 - Time Series and Stochastic Processes"
 editor_options:
   markdown:
     wrap: 72
 ---
 
-```{=html}
-<style>
+<!-- <style> -->
 
-.boxTask {
-background-color: lightblue;
-color: black;
-border: 2px solid black;
-margin: 5px;
-padding: 5px;
-font-style: italic;
-}
+<!-- .boxTask { -->
+<!-- background-color: lightblue; -->
+<!-- color: black; -->
+<!-- border: 2px solid black; -->
+<!-- margin: 5px; -->
+<!-- padding: 5px; -->
+<!-- font-style: italic; -->
+<!-- } -->
 
-/* Centered headings */
-h1, h2, h3, h4, h5, h6 {
-  text-align: center;
-}
+<!-- /* Centered headings */ -->
+<!-- h1, h2, h3, h4, h5, h6 { -->
+<!--   text-align: center; -->
+<!-- } -->
 
-</style>
-```
+<!-- </style> -->
 
+
+
+<!-- <style> -->
+
+<!-- .boxTask { -->
+<!-- background-color: lightblue; -->
+<!-- color: black; -->
+<!-- border: 2px solid black; -->
+<!-- margin: 5px; -->
+<!-- padding: 5px; -->
+<!-- font-style: italic; -->
+<!-- } -->
+
+<!-- /* Centered headings */ -->
+<!-- h1, h2, h3, h4, h5, h6 { -->
+<!--   text-align: center; -->
+<!-- } -->
+
+<!-- </style> -->
+
+# Introduction
+
+In this assignment/project, an 8-week period of New Zealand's historical electricity demand will be
+decomposed using two different methods, `stl()` and the newer `str()`.
+
+The resulting decompositions will be compared (i) visually, (ii) through an analysis of the residuals, and (iii) through their ability to forecast.
+  
+It will be discovered that *bla bla bla TODO*.
+
+## Electricity Demand in New Zealand
+
+New Zealand's electrical demand (two thirds of which are from households and industry (MBIE, 2024)) is influenced by factors such as temperature, where colder days may drive up energy demand for heating, and weekends, whereupon employees stay at home and industry ceases or slows down electrical demand. This means that there will be at least daily, weekly, and yearly seasonal components in New Zealand's electrical demand. Further understanding the exact effects of each of these seasonal components requires decomposing a time series into them.
+
+## Decomposition Techniques
+
+### `stl()`
+
+`stl()` is an R function that decomposes time series into three components: trend, seasonal, and remainder. It is based on the work of Cleveland (1990) and works by using LOESS (Locally Estimated Scatterplot Smoothing) to iteratively refine estimates of each component. The method was designed to be (i) simple to use, (ii) fast to compute, and (iii) allow for specifying seasonal/trend smoothing in a continuous way.
+
+### `str()`
+
+`str()` is an R function developed by Dokumentov and Hyndman (2021) that decomposes time series into multiple seasonal components. It is based on a regularized optimization, and is related to ridge regression. It attempts to address limitations in other methods by allowing for not only multiple seasonal patterns, but also (i) non-integer periods, (ii) interactions between the components, and (iii) complex topologies, such as modelling working days and holidays. Furthermore, as it is based on a statistical model, confidence intervals can be computed.
+
+# Data
+
+## Data Description
+
+The dataset chosen was: **Demand trends**.
+
+-   It was pulled from the [Electricity
+    Authority](https://www.emi.ea.govt.nz/Wholesale/Reports/W_GD_C?DateFrom=20190901&DateTo=20240831&RegionType=NZ&_rsdr=L60M&_si=_dr_DateFrom%7C20140101,_dr_DateTo%7C20231231,_dr_RegionType%7CNZ,_dr__rsdr%7CL10Y,v%7C4)
+    with the following parameters:
+    -   **Date Range**: 01 Jan 2014 - 31 Dec 2023 ('Latest 10 Calender
+        Years')
+    -   **Region Type**: New Zealand
+    -   **Time Scale** Trading Period (i.e. half-hourly data)
+
+This data will then be reduced to the 8 weeks beginning from `February 13 2023`. This date and length was chosen because it (i) avoids New Zealand's public holidays, leading to a simpler time series to model and (ii) conveniently begins on a Monday which will make the plots easier to interpret. 
+
+8 weeks was chosen because it is small that it is easy enough to distinguish each week and day in a single plot, and it is large enough to exhibit multiple-seasonality behaviour, in particular hourly and weekly seasonality.
+
+## Data Import
 
 ```{r echo=FALSE}
 source("./src/packages.R")
 knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 80), tidy = TRUE)
 ```
 
-```{=html}
-<style>
-
-.boxTask {
-background-color: lightblue;
-color: black;
-border: 2px solid black;
-margin: 5px;
-padding: 5px;
-font-style: italic;
-}
-
-/* Centered headings */
-h1, h2, h3, h4, h5, h6 {
-  text-align: center;
-}
-
-</style>
-```
-
-In this assignment/project, New Zealand's wholesale electricity prices will be decomposed using two different methods. The results and the residuals will be compared.
-
-# Introduction
-
-## New Zealand's Wholesale electricity market
-
-New Zealand's electricity market was liberalised in BLA BLA.
-
-## Introduction to stl() and str()
-
-stl() is an R package that allows decomposing a time series into two components.
-
-str() is a recent R package by ...
-
-::: boxTask
-Bla bla ba
-:::
-
-# Data Import
-
-The dataset chosen was: **Wholesale price trends**.
-
--   It was pulled from the [Electricity Authority](https://www.emi.ea.govt.nz/Wholesale/Reports/W_P_C?DateFrom=20140101&DateTo=20240101&RegionType=NZ&TimeScale=DAY&_si=_dr_DateFrom|20140101,_dr_DateTo|20240101,_dr_RegionType|NZ,_dr_TimeScale|TP,v|4) with the
-    following parameters:
-    -   **Date Range**: 01 Jan 2014 - 01 Jan 2024
-    -   **Region Type**: New Zealand
-    -   **Time Scale** Trading Period (i.e. half-hourly data)
-
 ```{r}
 # READ DATA
-file_path <- "./data/NZ_Wholesale_Electricity_Prices_2014-2024.csv"
+file_path <- "./data/NZ_Electricity_Demand_2014-2023.csv"
 header <- c("Period_Start", "Period_End", "Region_ID", "Region", "Price")
 
 raw_data <- read_csv(file_path, 
@@ -107,30 +119,37 @@ raw_data <- read_csv(file_path,
   )
 ```
 
+First both methods will be tried on a reduced set of the data,
+consisting of the first four weeks of 2023.
+
 ```{r}
 # FILTER DATA (for ease of use)
 
-use_hourly = 1
-use_only_one_year = 1
+## Parameters
+use_hourly <- 0
+##
 
 filtered_data <- raw_data %>%
   # Select hourly (instead of half-hourly)
   dplyr::filter(if (use_hourly == 1) row_number() %% 2 == 1 else TRUE) %>%
   # Select relevant columns
   dplyr::select(Period_Start, Price) %>%
-  # Only one year
-  dplyr::filter(if (use_only_one_year == 1) year(Period_Start) == 2023 else TRUE)
+  # Filter for 4 weeks starting from February 1, 2023
+  dplyr::filter(Period_Start >= as.Date("2023-02-01") & 
+                Period_Start < as.Date("2023-02-01") + weeks(4))
 
 head(filtered_data, 3)
 ```
 
+# Decomposition using stl()
 
 ```{r}
-# CREATE ts OBJECT
-frequency <- 24 * 7 * 4 # Month
+# CREATE ts OBJECT (for stl)
+frequency <- 48 * 7 # Week
 
+# msts stands for "multi-seasonal time series".
 elec_ts <- ts(filtered_data$Price, 
-                     start = c(2023, 1), 
+                     start = 2023 + 0 / 52,
                      frequency = frequency)
 
 # Print first few rows to verify
@@ -138,53 +157,90 @@ print(head(elec_ts))
 ```
 
 ```{r}
-# Create TSIBBLE object
-elec_tsibble <- tsibble(
-  Datetime = filtered_data$Period_Start,
-  Price = filtered_data$Price,
-  index = Datetime
-)
+elec_stl <- stl(elec_ts, s.window="periodic")
 
-print(head(elec_tsibble))
-print(range(elec_tsibble$Datetime))
+elec_stl %>% autoplot
 ```
-
-`tsibble` conveniently loads half-hourly data, where `ts` struggles.
-
-# Decomposition using stl()
-
-```{r}
-stl(elec_ts, s.window=24*7) %>% autoplot
-```
-
-```{r}
-
-# # STL decomposition
-# stl_decomp <- elec_tsibble %>%
-#   model(STL(Price ~ season(period = "day") + season(period = "week") + season(period = "year")))
-# 
-# # Plot the decomposition
-# components(stl_decomp) %>% autoplot()
-```
-
 
 It was found that ...
 
 # Decomposition using str()
 
 ```{r}
-# TODO
+# CREATE msts OBJECT
+season1 <- 48 # day
+season2 <- 48 * 7 # week
+season3 <- 48 * 7 * 52.25 # year
 
+# msts stands for "multi-seasonal time series".
+elec_msts <- forecast::msts(as.vector(filtered_data$Price), 
+                     start = 2023 + 0 / 52,
+                     seasonal.periods = c(season1, season2, season3)
+                  )
+
+# Print first few rows to verify
+print(head(elec_msts))
+
+# Plot to verify
+plot(elec_msts, ylab="Electricity demand", main="New Zealand electrical demand - 4 weeks from February 01 2023")
 ```
 
-Bla bla bla...
+```{r}
+elec_str <- AutoSTR(elec_msts, gapCV = 48, confidence = 0.95)
+```
+
+```{r}
+plot(elec_str)
+```
+
+The str() decomposition shows, from the top down:
+
+-   An "observed trend" component.
+-   A daily seasonal component.
+-   A weekly seasonal component.
+-   A random (i.e. residual) component.
+-   A fit/forecast using the above seasonal and trend components.
+
+It can be noticed that:
+
+-   TODO, bla bla
+
+## Comparison of stl and str
+
+This will be done three ways:
+
+1)  A visual inspection,
+2)  By analysing the residuals and performing a ACF/PACF/e.t.c., and
+    lastly
+3)  YOUR CHOICE CLAUDE
+
+### Visual Inspection
+
+Bla bla
+
+### Analysis of Residuals
+
+Bla bla
+
+### YOUR CHOICE CLAUDE
+
+## Extensions
+
+The above analysis could be extended by:
+
+-   Performing an analysis over a holiday period such as Christmas, to
+    see how it the seasonal components are affected by lower holiday
+    demand.
+-   Performing an analysis for long-term data, where yearly effects
+    could be incorporated.
+-   Incorporating a temperature component to the models.
 
 # Bibliography
 
-https://otexts.com/fpp2/complexseasonality.html
+<https://otexts.com/fpp2/complexseasonality.html>
 
-https://cran.r-project.org/web/packages/stR/vignettes/stRvignette.html
+<https://cran.r-project.org/web/packages/stR/vignettes/stRvignette.html>
 
-https://www.wessa.net/download/stl.pdf
+STL paper: <https://www.wessa.net/download/stl.pdf>
 
-
+<https://www.mbie.govt.nz/building-and-energy/energy-and-natural-resources/energy-statistics-and-modelling/energy-statistics/electricity-statistics>

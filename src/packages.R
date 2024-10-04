@@ -19,7 +19,7 @@ suppressPackageStartupMessages({
   library(feasts) # for gg_lag
   library(lubridate) # for Date Processing
   
-  
+  library(stR) # stR decomposition
   
   
 })
