@@ -72,11 +72,12 @@ New Zealand's electrical demand (two thirds of which are from households and ind
 
 ### `stl()`
 
-`stl()` is an R function that decomposes time series into three components: trend, seasonal, and remainder. It is based on the work of Cleveland (1990) and works by using LOESS (Locally Estimated Scatterplot Smoothing) to iteratively refine estimates of each component. The method was designed to be (i) simple to use, (ii) fast to compute, and (iii) allow for specifying seasonal/trend smoothing in a continuous way.
+`stl()` is an R function that decomposes time series into three components: trend, seasonal, and remainder. It is based on the work of Cleveland (1990) and works by using LOESS (Locally Estimated Scatterplot Smoothing) to iteratively refine estimates of each component. The method was designed to be (i) simple to use, (ii) fast to compute, and (iii) allow for specifying seasonal/trend smoothing in a continuous way. It was designed for only a single seasonal component, although it can be adapted for multiple seasonalities through nested applications.
+
 
 ### `str()`
 
-`str()` is an R function developed by Dokumentov and Hyndman (2021) that decomposes time series into multiple seasonal components. It is based on a regularized optimization, and is related to ridge regression. It attempts to address limitations in other methods by allowing for not only multiple seasonal patterns, but also (i) non-integer periods, (ii) interactions between the components, and (iii) complex topologies, such as modelling working days and holidays. Furthermore, as it is based on a statistical model, confidence intervals can be computed.
+`str()` is an R function developed by Dokumentov and Hyndman (2021) that decomposes time series into multiple seasonal components. It is based on a regularized optimization, and is related to ridge regression. It attempts to address limitations in other methods by allowing for not only multiple seasonal patterns, but also (i) non-integer periods, (ii) interactions between the components, (iii) complex topologies such as modelling working days and holidays, and even (iv) covariates such as temperature. Furthermore, as it is based on a statistical model, confidence intervals can be computed.
 
 # Data
 
@@ -92,9 +93,11 @@ The dataset chosen was: **Demand trends**.
     -   **Region Type**: New Zealand
     -   **Time Scale** Trading Period (i.e. half-hourly data)
 
+Note that the unit of measurement is GWh (Gigawatt hours).
+
 This data will then be reduced to the 8 weeks beginning from `February 13 2023`. This date and length was chosen because it (i) avoids New Zealand's public holidays, leading to a simpler time series to model and (ii) conveniently begins on a Monday which will make the plots easier to interpret. 
 
-8 weeks was chosen because it is small that it is easy enough to distinguish each week and day in a single plot, and it is large enough to exhibit multiple-seasonality behaviour, in particular hourly and weekly seasonality.
+8 weeks was chosen because it is small enough that it is easy to distinguish each week and day in a single plot, and it is large enough to exhibit multiple-seasonality: in particular hourly and weekly seasonality.
 
 ## Data Import
 
@@ -102,6 +105,8 @@ This data will then be reduced to the 8 weeks beginning from `February 13 2023`.
 source("./src/packages.R")
 knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 80), tidy = TRUE)
 ```
+
+First the data will be read in. Afterwards, it will be filtered for relevant dates/columns. 
 
 ```{r}
 # READ DATA
@@ -119,52 +124,34 @@ raw_data <- read_csv(file_path,
   )
 ```
 
-First both methods will be tried on a reduced set of the data,
-consisting of the first four weeks of 2023.
 
 ```{r}
 # FILTER DATA (for ease of use)
-
-## Parameters
-use_hourly <- 0
-##
-
 filtered_data <- raw_data %>%
-  # Select hourly (instead of half-hourly)
-  dplyr::filter(if (use_hourly == 1) row_number() %% 2 == 1 else TRUE) %>%
   # Select relevant columns
   dplyr::select(Period_Start, Price) %>%
   # Filter for 4 weeks starting from February 1, 2023
-  dplyr::filter(Period_Start >= as.Date("2023-02-01") & 
-                Period_Start < as.Date("2023-02-01") + weeks(4))
+  dplyr::filter(Period_Start >= as.Date("2023-02-13") & 
+                Period_Start < as.Date("2023-02-13") + weeks(6))
 
 head(filtered_data, 3)
 ```
 
-# Decomposition using stl()
+The data will now be converted to a `ts` (time series) object for `stl()`, and an `msts` (multi-seasonal time series) object for `str()`.
 
 ```{r}
 # CREATE ts OBJECT (for stl)
 frequency <- 48 * 7 # Week
 
-# msts stands for "multi-seasonal time series".
 elec_ts <- ts(filtered_data$Price, 
-                     start = 2023 + 0 / 52,
+                     # Has difficulties "start"ing for half-hourly data.
+                     # Just default to 2023.
+                     start = c(2023), 
                      frequency = frequency)
 
 # Print first few rows to verify
 print(head(elec_ts))
 ```
-
-```{r}
-elec_stl <- stl(elec_ts, s.window="periodic")
-
-elec_stl %>% autoplot
-```
-
-It was found that ...
-
-# Decomposition using str()
 
 ```{r}
 # CREATE msts OBJECT
@@ -174,7 +161,9 @@ season3 <- 48 * 7 * 52.25 # year
 
 # msts stands for "multi-seasonal time series".
 elec_msts <- forecast::msts(as.vector(filtered_data$Price), 
-                     start = 2023 + 0 / 52,
+                     # Has difficulties "start"ing for half-hourly data.
+                     # Just default to 2023.
+                     start = c(2023),
                      seasonal.periods = c(season1, season2, season3)
                   )
 
@@ -182,8 +171,21 @@ elec_msts <- forecast::msts(as.vector(filtered_data$Price),
 print(head(elec_msts))
 
 # Plot to verify
-plot(elec_msts, ylab="Electricity demand", main="New Zealand electrical demand - 4 weeks from February 01 2023")
+plot(elec_msts, ylab="Electricity demand", main="New Zealand electrical demand - 4 weeks from February 13 2023")
 ```
+
+# Decomposition using stl()
+
+```{r}
+elec_stl <- stl(elec_ts, s.window="periodic")
+
+elec_stl %>% autoplot
+```
+
+It was found that ... **TODO**
+**TODO** Do I need to change any settings? e.g. t.window, s.window
+
+# Decomposition using str()
 
 ```{r}
 elec_str <- AutoSTR(elec_msts, gapCV = 48, confidence = 0.95)
@@ -205,7 +207,7 @@ It can be noticed that:
 
 -   TODO, bla bla
 
-## Comparison of stl and str
+# Comparison of stl and str
 
 This will be done three ways:
 
@@ -222,9 +224,19 @@ Bla bla
 
 Bla bla
 
-### YOUR CHOICE CLAUDE
+### Short-term Forecasting
 
-## Extensions
+Bla bla
+
+# Conclusions
+
+Overall, str() appears to perform the better fit.
+
+## Practical Implications
+
+`str()` appears to be better fit for the purpose, if the goal is to understand electricity demand. Out of the box it provides an easily readable plot of the seasonal components, and the confidence intervals are an added bonus. However, it is several orders of magnitude slower than `stl()` (see the appendix). If a quick and easy analysis is needed, it may be preferable to use `stl()`. 
+
+## Possible Extensions
 
 The above analysis could be extended by:
 
@@ -244,3 +256,27 @@ The above analysis could be extended by:
 STL paper: <https://www.wessa.net/download/stl.pdf>
 
 <https://www.mbie.govt.nz/building-and-energy/energy-and-natural-resources/energy-statistics-and-modelling/energy-statistics/electricity-statistics>
+
+# Appendix
+
+## Time Comparison
+
+```{r}
+library(microbenchmark)
+
+# Ensure elec_ts and elec_msts are defined as before
+
+benchmark_results <- microbenchmark(
+  stl = stl(elec_ts, s.window="periodic"),
+  str = AutoSTR(elec_msts, gapCV = 48, confidence = 0.95),
+  times = 10
+)
+
+print(benchmark_results)
+
+# Visualize the results
+library(ggplot2)
+autoplot(benchmark_results)
+```
+
+The above graph show that `stl()` is at least 3 orders of magnitude slower than `str()` on this dataset.
