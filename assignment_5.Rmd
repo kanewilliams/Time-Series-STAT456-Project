@@ -95,9 +95,9 @@ The dataset chosen was: **Demand trends**.
 
 Note that the unit of measurement is GWh (Gigawatt hours).
 
-This data will then be reduced to the 8 weeks beginning from `February 13 2023`. This date and length was chosen because it (i) avoids New Zealand's public holidays, leading to a simpler time series to model and (ii) conveniently begins on a Monday which will make the plots easier to interpret. 
+This data will then be reduced to the 6 weeks beginning from `February 13 2023`. This date and length was chosen because it (i) avoids New Zealand's public holidays, leading to a simpler time series to model and (ii) conveniently begins on a Monday which will make the plots easier to interpret. 
 
-8 weeks was chosen because it is small enough that it is easy to distinguish each week and day in a single plot, and it is large enough to exhibit multiple-seasonality: in particular hourly and weekly seasonality.
+6 weeks was chosen because it is small enough that it is easy to distinguish each week and day in a single plot, and it is large enough to exhibit multiple-seasonality: in particular hourly and weekly seasonality.
 
 ## Data Import
 
@@ -130,47 +130,37 @@ raw_data <- read_csv(file_path,
 filtered_data <- raw_data %>%
   # Select relevant columns
   dplyr::select(Period_Start, Price) %>%
-  # Filter for 4 weeks starting from February 1, 2023
+  # Filter for 4 weeks starting from Monday, Feb 13, 2023
   dplyr::filter(Period_Start >= as.Date("2023-02-13") & 
-                Period_Start < as.Date("2023-02-13") + weeks(6))
+                Period_Start < as.Date("2023-02-13") + weeks(4))
 
 head(filtered_data, 3)
 ```
 
-The data will now be converted to a `ts` (time series) object for `stl()`, and an `msts` (multi-seasonal time series) object for `str()`.
+The data will now be converted to a `ts` (time series) object for `stl()`, and an `msts` (multi-seasonal time series) object for `str()`. Note that these objects have difficulty with setting 'start' dates if it is half-hourly data. So they will 'start' at 2023-01-01. This will not impact any analyses.
 
 ```{r}
 # CREATE ts OBJECT (for stl)
-frequency <- 48 * 7 # Week
-
-elec_ts <- ts(filtered_data$Price, 
-                     # Has difficulties "start"ing for half-hourly data.
-                     # Just default to 2023.
-                     start = c(2023), 
-                     frequency = frequency)
-
-# Print first few rows to verify
-print(head(elec_ts))
-```
-
-```{r}
-# CREATE msts OBJECT
 season1 <- 48 # day
 season2 <- 48 * 7 # week
 season3 <- 48 * 7 * 52.25 # year
 
-# msts stands for "multi-seasonal time series".
+# Only one seasonality allowed for `ts`, so will use weekly.
+elec_ts <- ts(filtered_data$Price, 
+                     start = c(2023), 
+                     frequency = season2)
+
+head(elec_ts)
+```
+
+```{r}
+# CREATE msts ("multi-seasonal time series") OBJECT
+
 elec_msts <- forecast::msts(as.vector(filtered_data$Price), 
-                     # Has difficulties "start"ing for half-hourly data.
-                     # Just default to 2023.
                      start = c(2023),
                      seasonal.periods = c(season1, season2, season3)
                   )
 
-# Print first few rows to verify
-print(head(elec_msts))
-
-# Plot to verify
 plot(elec_msts, ylab="Electricity demand", main="New Zealand electrical demand - 4 weeks from February 13 2023")
 ```
 
@@ -182,7 +172,7 @@ elec_stl <- stl(elec_ts, s.window="periodic")
 elec_stl %>% autoplot
 ```
 
-It was found that ... **TODO**
+For this time period, there was not much of any increasing/decreasing trend. `stl` picked up a "trend"
 **TODO** Do I need to change any settings? e.g. t.window, s.window
 
 # Decomposition using str()
@@ -222,11 +212,94 @@ Bla bla
 
 ### Analysis of Residuals
 
-Bla bla
+First the PACF/ACF of the `stl` output will be plotted, followed by the PACF/ACF of `str`.
+
+```{r}
+remainder_stl <- elec_stl$time.series[, "remainder"]
+pacf(remainder_stl)
+acf(remainder_stl)
+```
+
+```{r}
+remainder_str <- unlist(elec_str$output$random)
+pacf(remainder_str)
+acf(remainder_str)
+```
+
+The above plots show that 
+
 
 ### Short-term Forecasting
 
-Bla bla
+ TODO FORECAST 1 WEEK AHEAD USING STL AS WELL AS STR
+
+```{r}
+# # Load necessary libraries
+# library(dplyr)
+# library(ggplot2)
+# 
+# # Assuming elec_ts, elec_msts, elec_stl, and elec_str are already defined
+# 
+# # 1. Manual STL Forecasting
+# stl_seasonal <- elec_stl$time.series[, "seasonal"]
+# stl_trend <- mean(elec_stl$time.series[, "trend"])  # Using mean of trend
+# 
+# # Create forecast by repeating the last week of seasonal component
+# last_week_seasonal <- tail(stl_seasonal, 7 * 48)
+# stl_forecast <- rep(last_week_seasonal, 1) + stl_trend
+# 
+# # 2. Manual STR Forecasting
+# str_daily <- elec_str$output$seasonal1
+# str_weekly <- elec_str$output$seasonal2
+# str_trend <- mean(elec_str$output$trend)  # Using mean of trend
+# 
+# # Create forecast by repeating the last week of each seasonal component
+# last_week_daily <- tail(str_daily, 7 * 48)
+# last_week_weekly <- tail(str_weekly, 7 * 48)
+# str_forecast <- rep(last_week_daily, 1) + rep(last_week_weekly, 1) + str_trend
+# 
+# # 3. Prepare actual data for comparison
+# actual_data <- window(elec_ts, start = time(elec_ts)[length(elec_ts) + 1], end = time(elec_ts)[length(elec_ts) + 7 * 48])
+# 
+# # 4. Calculate forecast accuracy measures
+# calculate_accuracy <- function(forecast, actual) {
+#   residuals <- actual - forecast
+#   mae <- mean(abs(residuals))
+#   rmse <- sqrt(mean(residuals^2))
+#   mape <- mean(abs(residuals / actual)) * 100
+#   
+#   return(c(MAE = mae, RMSE = rmse, MAPE = mape))
+# }
+# 
+# stl_accuracy <- calculate_accuracy(stl_forecast, actual_data)
+# str_accuracy <- calculate_accuracy(str_forecast, actual_data)
+# 
+# # 5. Create a comparison dataframe
+# forecast_comparison <- data.frame(
+#   Time = time(actual_data),
+#   Actual = as.numeric(actual_data),
+#   STL_Forecast = stl_forecast,
+#   STR_Forecast = str_forecast
+# )
+# 
+# # 6. Plot comparison
+# ggplot(forecast_comparison, aes(x = Time)) +
+#   geom_line(aes(y = Actual, color = "Actual")) +
+#   geom_line(aes(y = STL_Forecast, color = "STL Forecast")) +
+#   geom_line(aes(y = STR_Forecast, color = "STR Forecast")) +
+#   scale_color_manual(values = c("Actual" = "black", "STL Forecast" = "blue", "STR Forecast" = "red")) +
+#   ggtitle("Comparison of Manual STL and STR Forecasts") +
+#   xlab("Time") +
+#   ylab("Electricity Demand") +
+#   theme_minimal()
+# 
+# # 7. Print accuracy measures
+# print("STL Forecast Accuracy:")
+# print(stl_accuracy)
+# 
+# print("STR Forecast Accuracy:")
+# print(str_accuracy)
+```
 
 # Conclusions
 
@@ -258,6 +331,14 @@ STL paper: <https://www.wessa.net/download/stl.pdf>
 <https://www.mbie.govt.nz/building-and-energy/energy-and-natural-resources/energy-statistics-and-modelling/energy-statistics/electricity-statistics>
 
 # Appendix
+
+## `stl()` technical details
+
+stl works by ...
+
+## `str()` technical details
+
+`str` works by ...
 
 ## Time Comparison
 
