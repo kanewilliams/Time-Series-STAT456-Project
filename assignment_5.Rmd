@@ -66,18 +66,20 @@ It will be discovered that *bla bla bla TODO*.
 
 ## Electricity Demand in New Zealand
 
-New Zealand's electrical demand (two thirds of which are from households and industry (MBIE, 2024)) is influenced by factors such as temperature, where colder days may drive up energy demand for heating, and weekends, whereupon employees stay at home and industry ceases or slows down electrical demand. This means that there will be at least daily, weekly, and yearly seasonal components in New Zealand's electrical demand. Further understanding the exact effects of each of these seasonal components requires decomposing a time series into them.
+New Zealand's electrical demand (two thirds of which are from households and industry (MBIE, 2024)) is influenced by factors such as temperature, where colder days may drive up energy demand for heating, and weekends, whereupon employees stay at home and industry ceases or slows down electrical demand. This means that there will be at least daily, weekly, and yearly seasonal components in New Zealand's electrical demand. Understanding the exact effects of each of these seasonal components on the overall plot requires decomposing a time series into them.
 
 ## Decomposition Techniques
 
 ### `stl()`
 
-`stl()` is an R function that decomposes time series into three components: trend, seasonal, and remainder. It is based on the work of Cleveland (1990) and works by using LOESS (Locally Estimated Scatterplot Smoothing) to iteratively refine estimates of each component. The method was designed to be (i) simple to use, (ii) fast to compute, and (iii) allow for specifying seasonal/trend smoothing in a continuous way. It was designed for only a single seasonal component, although it can be adapted for multiple seasonalities through nested applications.
+`stl()` is an R function that decomposes time series into three components: trend, seasonal, and remainder. It is based on the work of Cleveland (1990) and works by using LOESS (Locally Estimated Scatterplot Smoothing) to iteratively refine estimates of each component. It is designed for The method was designed to be (i) simple to use, (ii) fast to compute, and (iii) allow for specifying seasonal/trend smoothing in a continuous way. It was designed for only a single seasonal component, although it can be adapted for multiple seasonalities through nested applications. It is only designed for *additive* decomposition.
 
 
 ### `str()`
 
-`str()` is an R function developed by Dokumentov and Hyndman (2021) that decomposes time series into multiple seasonal components. It is based on a regularized optimization, and is related to ridge regression. It attempts to address limitations in other methods by allowing for not only multiple seasonal patterns, but also (i) non-integer periods, (ii) interactions between the components, (iii) complex topologies such as modelling working days and holidays, and even (iv) covariates such as temperature. Furthermore, as it is based on a statistical model, confidence intervals can be computed.
+`str()` is an R function developed by Dokumentov and Hyndman (2021) that decomposes time series into multiple seasonal components. It is based on a regularized optimization, and is related to ridge regression. It attempts to address limitations in other methods by allowing for not only multiple seasonal patterns, but also (i) non-integer periods, (ii) interactions between the components, (iii) complex topologies such as modelling holidays, and even (iv) covariates such as temperature and the presense of COVID-19. Furthermore, as it is based on a statistical model, confidence intervals can be computed. It is designed for both *additive* and *multiplicative* decomposition.
+
+For a more technical description of both of the above methods - in the author's own words - please see the appendix.
 
 # Data
 
@@ -95,9 +97,9 @@ The dataset chosen was: **Demand trends**.
 
 Note that the unit of measurement is GWh (Gigawatt hours).
 
-This data will then be reduced to the 6 weeks beginning from `February 13 2023`. This date and length was chosen because it (i) avoids New Zealand's public holidays, leading to a simpler time series to model and (ii) conveniently begins on a Monday which will make the plots easier to interpret. 
+This data will then be reduced to the 10 weeks beginning from `5 December 2022`. This date and length was chosen because it (i) includes the Christmas period, which will be a good test for how it deals with this, and (ii) conveniently begins on a Monday which will make the plots easier to interpret. 
 
-6 weeks was chosen because it is small enough that it is easy to distinguish each week and day in a single plot, and it is large enough to exhibit multiple-seasonality: in particular hourly and weekly seasonality.
+10 weeks was chosen because it is small enough that it is easy to visually identify both weekly and daily periods, and it is large enough to exhibit multiple-seasonality from both of these periods. Later on, a larger period will be chosen so that the the effect of yearly seasonality on the models can be investigated.
 
 ## Data Import
 
@@ -127,41 +129,59 @@ raw_data <- read_csv(file_path,
 
 ```{r}
 # FILTER DATA (for ease of use)
-filtered_data <- raw_data %>%
+elec_data <- raw_data %>%
   # Select relevant columns
   dplyr::select(Period_Start, Price) %>%
   # Filter for 4 weeks starting from Monday, Feb 13, 2023
-  dplyr::filter(Period_Start >= as.Date("2023-02-13") & 
-                Period_Start < as.Date("2023-02-13") + weeks(4))
+  dplyr::filter(Period_Start >= as.Date("2022-12-05") & 
+                Period_Start < as.Date("2022-12-05") + weeks(10))
 
-head(filtered_data, 3)
+head(elec_data, 3)
 ```
 
-The data will now be converted to a `ts` (time series) object for `stl()`, and an `msts` (multi-seasonal time series) object for `str()`. Note that these objects have difficulty with setting 'start' dates if it is half-hourly data. So they will 'start' at 2023-01-01. This will not impact any analyses.
+## Plot
 
 ```{r}
+ggplot(elec_data, aes(x = Period_Start, y = Price)) +
+  geom_line() +
+  geom_vline(xintercept = as.POSIXct("2022-12-25"), color = "red", linetype = "dashed", size = 1) +
+  annotate("text", x = as.POSIXct("2022-12-25"), y = max(elec_data$Price), 
+           label = "Christmas", color = "red", vjust = 2, hjust = -0.1) +
+  # geom_vline(xintercept = as.POSIXct("2023-02-07"), color = "blue", linetype = "dashed", size = 0.5) +
+  # annotate("text", x = as.POSIXct("2023-02-07"), y = max(elec_data$Price), 
+  #          label = "Waitangi Public Holiday", color = "blue", vjust = 2, hjust = -0.1) +
+  labs(
+    title = "New Zealand Electrical Demand",
+    subtitle = "10 weeks from December 5, 2022",
+    x = "Date",
+    y = "Electricity Demand (GWh)"
+  ) +
+  #theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  scale_x_datetime(date_breaks = "1 week", date_labels = "%b %d")
+```
+**Immediate observations**
+
+There are clear weekly and daily seasonality present. A decrease in electricity demand leading up to the dip during the Christmas and New Years period is very noticeable. After that, there is a slow rising trend. There may have been a New Years' effect. Another New Zealand public holiday Waitangi day, was observed on the 7th of February 2022, but there does not appear to be any noticeable effect from it. Schools began opening from the 31st of January, and there does not seem to be any noticeable effect from this either, although it may just not be clear for this particular timeframe.
+
+## Fitting `ts` and `msts` 
+
+The data will now be converted to a `ts` (time series) object for `stl()`, and an `msts` (multi-seasonal time series) object for `str()`.
+
+```{r}
+season_day <- 48 # day
+season_week <- 48 * 7 # week
+season_year <- 48 * 7 * 52.25 # year
+
 # CREATE ts OBJECT (for stl)
-season1 <- 48 # day
-season2 <- 48 * 7 # week
-season3 <- 48 * 7 * 52.25 # year
-
-# Only one seasonality allowed for `ts`, so will use weekly.
-elec_ts <- ts(filtered_data$Price, 
-                     start = c(2023), 
-                     frequency = season2)
-
+# only one seasonality allowed, so weekly chosen
+elec_ts <- ts(elec_data$Price,
+                     frequency = season_week 
+)
 head(elec_ts)
-```
-
-```{r}
-# CREATE msts ("multi-seasonal time series") OBJECT
-
-elec_msts <- forecast::msts(as.vector(filtered_data$Price), 
-                     start = c(2023),
-                     seasonal.periods = c(season1, season2, season3)
-                  )
-
-plot(elec_msts, ylab="Electricity demand", main="New Zealand electrical demand - 4 weeks from February 13 2023")
 ```
 
 # Decomposition using stl()
@@ -184,7 +204,7 @@ elec_str <- AutoSTR(elec_msts, gapCV = 48, confidence = 0.95)
 ```{r}
 plot(elec_str)
 ```
-
+(*Note* Running `str()` definitely takes longer than `stl()`. Running time will be benchmarked in the appendix.)
 The str() decomposition shows, from the top down:
 
 -   An "observed trend" component.
@@ -319,6 +339,9 @@ The above analysis could be extended by:
 -   Performing an analysis for long-term data, where yearly effects
     could be incorporated.
 -   Incorporating a temperature component to the models.
+-   Incorporating holidays as an additional 
+-   *Detecting* undiscovered seasonal components.
+-   Using the logged data for stl in case it has multiplicative components.
 
 # Bibliography
 
@@ -326,7 +349,7 @@ The above analysis could be extended by:
 
 <https://cran.r-project.org/web/packages/stR/vignettes/stRvignette.html>
 
-STL paper: <https://www.wessa.net/download/stl.pdf>
+Cleveland, R. B., Cleveland, W. S., McRae, J. E., & Terpenning, I. J. (1990). STL: A seasonal-trend decomposition procedure based on loess. Journal of Official Statistics, 6(1), 3–33. http://bit.ly/stl1990
 
 <https://www.mbie.govt.nz/building-and-energy/energy-and-natural-resources/energy-statistics-and-modelling/energy-statistics/electricity-statistics>
 
