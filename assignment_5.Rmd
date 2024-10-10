@@ -1,7 +1,6 @@
 ---
 title: "Assignment 5 - Decomposing New Zealand Electrical Demand using stl() and str()"
-author:
-- name: Kane Williams (pkw21@uclive.ac.nz)
+author: "Kane Williams (pkw21@uclive.ac.nz)"
 output:
   pdf_document:
     toc: true
@@ -66,13 +65,13 @@ It will be discovered that *bla bla bla TODO*.
 
 ## Electricity Demand in New Zealand
 
-New Zealand's electrical demand (two thirds of which are from households and industry (MBIE, 2024)) is influenced by factors such as temperature, where colder days may drive up energy demand for heating, and weekends, whereupon employees stay at home and industry ceases or slows down electrical demand. This means that there will be at least daily, weekly, and yearly seasonal components in New Zealand's electrical demand. Understanding the exact effects of each of these seasonal components on the overall plot requires decomposing a time series into them.
+New Zealand's electrical demand (two thirds of which are from households and industry (MBIE, 2024)) is influenced by factors such as temperature, weekends, holidays, and the day of the year. There are at least daily, weekly, and yearly seasonal components in New Zealand's electrical demand. Understanding the effects that each of these seasonal components contributes to overall demand requires the use of time series decomposition.
 
 ## Decomposition Techniques
 
 ### `stl()`
 
-`stl()` is an R function that decomposes time series into three components: trend, seasonal, and remainder. It is based on the work of Cleveland (1990) and works by using LOESS (Locally Estimated Scatterplot Smoothing) to iteratively refine estimates of each component. It is designed for The method was designed to be (i) simple to use, (ii) fast to compute, and (iii) allow for specifying seasonal/trend smoothing in a continuous way. It was designed for only a single seasonal component, although it can be adapted for multiple seasonalities through nested applications. It is only designed for *additive* decomposition.
+`stl()` is an R function that decomposes time series into three components: trend, seasonal, and remainder. It is based on the work of Cleveland (1990) and works by using LOESS (Locally Estimated Scatterplot Smoothing) to iteratively refine estimates of each component. The method was designed to be (i) simple to use, (ii) fast to compute, and (iii) allow for specifying seasonal/trend smoothing in a continuous way. It was designed for only a single seasonal component, although it can be adapted for multiple seasonalities through nested applications. It is only designed for *additive* decomposition.
 
 
 ### `str()`
@@ -87,17 +86,16 @@ For a more technical description of both of the above methods - in the author's 
 
 The dataset chosen was: **Demand trends**.
 
--   It was pulled from the [Electricity
+-   It was pulled on `1 October 2024` from the [Electricity
     Authority](https://www.emi.ea.govt.nz/Wholesale/Reports/W_GD_C?DateFrom=20190901&DateTo=20240831&RegionType=NZ&_rsdr=L60M&_si=_dr_DateFrom%7C20140101,_dr_DateTo%7C20231231,_dr_RegionType%7CNZ,_dr__rsdr%7CL10Y,v%7C4)
     with the following parameters:
-    -   **Date Range**: 01 Jan 2014 - 31 Dec 2023 ('Latest 10 Calender
-        Years')
+    -   **Date Range**: 01 Jan 2014 - 31 Dec 2023
     -   **Region Type**: New Zealand
     -   **Time Scale** Trading Period (i.e. half-hourly data)
 
 Note that the unit of measurement is GWh (Gigawatt hours).
 
-This data will then be reduced to the 10 weeks beginning from `5 December 2022`. This date and length was chosen because it (i) includes the Christmas period, which will be a good test for how it deals with this, and (ii) conveniently begins on a Monday which will make the plots easier to interpret. 
+This data will then be reduced to the 10 weeks beginning from `5 December 2022`. This date was chosen because it (i) includes the Christmas period, which will be a good test for how each technique deals with "Holiday" effects, and (ii) conveniently begins on a Monday, which may make the plots easier to interpret. 
 
 10 weeks was chosen because it is small enough that it is easy to visually identify both weekly and daily periods, and it is large enough to exhibit multiple-seasonality from both of these periods. Later on, a larger period will be chosen so that the the effect of yearly seasonality on the models can be investigated.
 
@@ -110,7 +108,7 @@ knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 80), tidy = TRUE)
 
 First the data will be read in. Afterwards, it will be filtered for relevant dates/columns. 
 
-```{r}
+```{r echo=FALSE}
 # READ DATA
 file_path <- "./data/NZ_Electricity_Demand_2014-2023.csv"
 header <- c("Period_Start", "Period_End", "Region_ID", "Region", "Price")
@@ -127,7 +125,7 @@ raw_data <- read_csv(file_path,
 ```
 
 
-```{r}
+```{r echo=FALSE}
 # FILTER DATA (for ease of use)
 elec_data <- raw_data %>%
   # Select relevant columns
@@ -141,10 +139,10 @@ head(elec_data, 3)
 
 ## Plot
 
-```{r}
+```{r echo=FALSE}
 ggplot(elec_data, aes(x = Period_Start, y = Price)) +
   geom_line() +
-  geom_vline(xintercept = as.POSIXct("2022-12-25"), color = "red", linetype = "dashed", size = 1) +
+  geom_vline(xintercept = as.POSIXct("2022-12-25"), color = "red", linetype = "dashed", linewidth = 1) +
   annotate("text", x = as.POSIXct("2022-12-25"), y = max(elec_data$Price), 
            label = "Christmas", color = "red", vjust = 2, hjust = -0.1) +
   # geom_vline(xintercept = as.POSIXct("2023-02-07"), color = "blue", linetype = "dashed", size = 0.5) +
@@ -153,10 +151,10 @@ ggplot(elec_data, aes(x = Period_Start, y = Price)) +
   labs(
     title = "New Zealand Electrical Demand",
     subtitle = "10 weeks from December 5, 2022",
-    x = "Date",
+    #x = "Date",
     y = "Electricity Demand (GWh)"
   ) +
-  #theme_minimal() +
+  xlab("") + # no x label
   theme(
     plot.title = element_text(hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5)
@@ -171,22 +169,33 @@ There are clear weekly and daily seasonality present. A decrease in electricity 
 
 The data will now be converted to a `ts` (time series) object for `stl()`, and an `msts` (multi-seasonal time series) object for `str()`.
 
-```{r}
+```{r echo=FALSE}
 season_day <- 48 # day
 season_week <- 48 * 7 # week
 season_year <- 48 * 7 * 52.25 # year
 
 # CREATE ts OBJECT (for stl)
-# only one seasonality allowed, so weekly chosen
+# Only one seasonality allowed - Just Weekly chosen
 elec_ts <- ts(elec_data$Price,
                      frequency = season_week 
 )
+# CREATE msts OBJECT (for str) - All seasonalities
+elec_msts_all <- forecast::msts(as.vector(elec_data$Price), 
+                             seasonal.periods = c(season_day, season_week, season_year)
+)
+# CREATE msts OBJECT (for str) - Just Weekly seasonality
+elec_msts_week <- forecast::msts(as.vector(elec_data$Price), 
+                             seasonal.periods = c(season_week, season_year)
+)
+```
+
+```{r echo=FALSE}
 head(elec_ts)
 ```
 
 # Decomposition using stl()
 
-```{r}
+```{r echo=FALSE}
 elec_stl <- stl(elec_ts, s.window="periodic")
 
 elec_stl %>% autoplot
@@ -197,13 +206,14 @@ For this time period, there was not much of any increasing/decreasing trend. `st
 
 # Decomposition using str()
 
-```{r}
-elec_str <- AutoSTR(elec_msts, gapCV = 48, confidence = 0.95)
+```{r echo=FALSE}
+elec_str <- AutoSTR(elec_msts_all, gapCV = 48, confidence = NULL)
 ```
 
-```{r}
+```{r echo=FALSE}
 plot(elec_str)
 ```
+
 (*Note* Running `str()` definitely takes longer than `stl()`. Running time will be benchmarked in the appendix.)
 The str() decomposition shows, from the top down:
 
@@ -216,6 +226,7 @@ The str() decomposition shows, from the top down:
 It can be noticed that:
 
 -   TODO, bla bla
+
 
 # Comparison of stl and str
 
@@ -235,15 +246,15 @@ Bla bla
 First the PACF/ACF of the `stl` output will be plotted, followed by the PACF/ACF of `str`.
 
 ```{r}
-remainder_stl <- elec_stl$time.series[, "remainder"]
-pacf(remainder_stl)
-acf(remainder_stl)
+# remainder_stl <- elec_stl$time.series[, "remainder"]
+# pacf(remainder_stl)
+# acf(remainder_stl)
 ```
 
 ```{r}
-remainder_str <- unlist(elec_str$output$random)
-pacf(remainder_str)
-acf(remainder_str)
+# remainder_str <- unlist(elec_str$output$random)
+# pacf(remainder_str)
+# acf(remainder_str)
 ```
 
 The above plots show that 
@@ -252,74 +263,6 @@ The above plots show that
 ### Short-term Forecasting
 
  TODO FORECAST 1 WEEK AHEAD USING STL AS WELL AS STR
-
-```{r}
-# # Load necessary libraries
-# library(dplyr)
-# library(ggplot2)
-# 
-# # Assuming elec_ts, elec_msts, elec_stl, and elec_str are already defined
-# 
-# # 1. Manual STL Forecasting
-# stl_seasonal <- elec_stl$time.series[, "seasonal"]
-# stl_trend <- mean(elec_stl$time.series[, "trend"])  # Using mean of trend
-# 
-# # Create forecast by repeating the last week of seasonal component
-# last_week_seasonal <- tail(stl_seasonal, 7 * 48)
-# stl_forecast <- rep(last_week_seasonal, 1) + stl_trend
-# 
-# # 2. Manual STR Forecasting
-# str_daily <- elec_str$output$seasonal1
-# str_weekly <- elec_str$output$seasonal2
-# str_trend <- mean(elec_str$output$trend)  # Using mean of trend
-# 
-# # Create forecast by repeating the last week of each seasonal component
-# last_week_daily <- tail(str_daily, 7 * 48)
-# last_week_weekly <- tail(str_weekly, 7 * 48)
-# str_forecast <- rep(last_week_daily, 1) + rep(last_week_weekly, 1) + str_trend
-# 
-# # 3. Prepare actual data for comparison
-# actual_data <- window(elec_ts, start = time(elec_ts)[length(elec_ts) + 1], end = time(elec_ts)[length(elec_ts) + 7 * 48])
-# 
-# # 4. Calculate forecast accuracy measures
-# calculate_accuracy <- function(forecast, actual) {
-#   residuals <- actual - forecast
-#   mae <- mean(abs(residuals))
-#   rmse <- sqrt(mean(residuals^2))
-#   mape <- mean(abs(residuals / actual)) * 100
-#   
-#   return(c(MAE = mae, RMSE = rmse, MAPE = mape))
-# }
-# 
-# stl_accuracy <- calculate_accuracy(stl_forecast, actual_data)
-# str_accuracy <- calculate_accuracy(str_forecast, actual_data)
-# 
-# # 5. Create a comparison dataframe
-# forecast_comparison <- data.frame(
-#   Time = time(actual_data),
-#   Actual = as.numeric(actual_data),
-#   STL_Forecast = stl_forecast,
-#   STR_Forecast = str_forecast
-# )
-# 
-# # 6. Plot comparison
-# ggplot(forecast_comparison, aes(x = Time)) +
-#   geom_line(aes(y = Actual, color = "Actual")) +
-#   geom_line(aes(y = STL_Forecast, color = "STL Forecast")) +
-#   geom_line(aes(y = STR_Forecast, color = "STR Forecast")) +
-#   scale_color_manual(values = c("Actual" = "black", "STL Forecast" = "blue", "STR Forecast" = "red")) +
-#   ggtitle("Comparison of Manual STL and STR Forecasts") +
-#   xlab("Time") +
-#   ylab("Electricity Demand") +
-#   theme_minimal()
-# 
-# # 7. Print accuracy measures
-# print("STL Forecast Accuracy:")
-# print(stl_accuracy)
-# 
-# print("STR Forecast Accuracy:")
-# print(str_accuracy)
-```
 
 # Conclusions
 
@@ -366,21 +309,37 @@ stl works by ...
 ## Time Comparison
 
 ```{r}
-library(microbenchmark)
-
-# Ensure elec_ts and elec_msts are defined as before
-
-benchmark_results <- microbenchmark(
-  stl = stl(elec_ts, s.window="periodic"),
-  str = AutoSTR(elec_msts, gapCV = 48, confidence = 0.95),
-  times = 10
-)
-
-print(benchmark_results)
-
-# Visualize the results
-library(ggplot2)
-autoplot(benchmark_results)
+# library(microbenchmark)
+# 
+# # Ensure elec_ts and elec_msts are defined as before
+# 
+# benchmark_results <- microbenchmark(
+#   stl = stl(elec_ts, s.window="periodic"),
+#   str = AutoSTR(elec_msts, gapCV = 48, confidence = 0.95),
+#   times = 10
+# )
+# 
+# print(benchmark_results)
+# 
+# # Visualize the results
+# library(ggplot2)
+# autoplot(benchmark_results)
 ```
 
+
 The above graph show that `stl()` is at least 3 orders of magnitude slower than `str()` on this dataset.
+
+## An error running the Robust version
+
+Running the 'Robust' version of stR by setting `robust=TRUE` caused R to either crash unexpectedly or return an error message.
+
+Specifically, `AutoSTR(elec_msts_all, gapCV = 48, confidence = NULL, robust=TRUE)` will crash if the number of weeks is set to $10$, while it will return the following error message if weeks is set to $3$:
+
+  as(<dgCMatrix>, "dgTMatrix")' is deprecated.
+  Use 'as(., "TsparseMatrix")' instead.
+  See help("Deprecated") and help("Matrix-deprecated").
+  
+*Note for future reference:*
+  
+  R is at the current (24/10/10) version: 4.4.1
+  `stR` is at the current version: 0.7
