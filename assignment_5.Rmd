@@ -32,52 +32,62 @@ For this assignment, a 10-week period of New Zealand's historical
 electricity demand will be decomposed using three different methods,
 `stl()`, `mstl()`, and `STR()`.
 
-The resulting decompositions will be compared (i) by the features extracted, (ii) through
-an analysis of the residuals, and (iii) through their ability to
-forecast.
+The resulting decompositions will be compared (i) by the features
+extracted, (ii) through an analysis of the residuals, and (iii) through
+their time taken to run.
 
-It will be discovered that the regression-based `STR()` has many advantages over the loess-based `stl()` and `mstl()`, particularly in its ability to **TODO**. However, both classes of method have their uses in the analyst's toolkit since they both ultimately pick out different features of the data, as they both use different methods.
+It will be discovered that neither class of technique is a replacement for the
+other. LOESS-based techniques like `stl()` and `mstl()` are possibly better for local anomaly detection,
+and `STR()` is possibly better at picking up 'interaction' effects
+between days and weeks. While the LOESS-based techniques are certainly faster, `STR()` has the advantage of being able to easily form confidence intervals. Both techniques belong in the analyst's
+toolkit since ultimately both of them pick out different features of the
+data.
 
 ## Electricity Demand in New Zealand
 
 New Zealand's electrical demand (two thirds of which are from households
 and industry (MBIE, 2024)) is influenced by factors such as temperature,
 time-of-day, day-of-the-week, day-of-the-year, and the presence of
-holidays. There are multiple seasonal components which potentially have
-interaction effects with each other. Using time series decomposition, it
-is possible to gain an understand of how each of these seasonal
-components can contribute to overall demand.
+holidays. This means that there are multiple seasonal components which potentially have
+interaction effects with each other. Using the above techniques, it
+will be possible to understand how each seasonal
+component contributes to overall demand.
 
 ## Decomposition Techniques
 
-Three different methods will be used in this paper, in two classes (using LOESS, and using Regression). All methods decompose additively (as will be done in this data), but a log/box-cox transformation can be used if a multiplicative decomposition is required. Below is a brief summary of each method. For a more technical description of each method please see the appendix.
+Three different methods will be used in this paper. All methods decompose additively
+(as will be done for this data), but a log/box-cox transformation can be
+used if a multiplicative decomposition is required. Below is a brief
+summary of each method. For a more technical description of each method
+please see the appendix.
 
 ### `stl()`/`mstl()` - Seasonal-Trend decomposition using Loess
 
-`stl()` from the stats package is an R function that decomposes time series into three
-components: trend, seasonal, and remainder. It is based on the work of
-Cleveland (1990) and works by using LOESS (Locally Estimated Scatterplot
-Smoothing) to "iteratively refine estimates" of each component. The
-method was designed to be (i) simple to use, (ii) fast to compute, and
-(iii) allow for specifying seasonal/trend smoothing in a continuous way.
-It was designed for only a single seasonal component, although it can be
-adapted for multiple seasonalities either through nested applications or
-by using the related `mstl()` function from the `forecast` package.
-`stl()` and `mstl()` are non-parametric methods not based on any
-statistical model. They just attempt to fit smooth curves to the data.
+`stl()` from the stats package is an R function that decomposes time
+series into three components: trend, seasonal, and remainder. It is
+based on the work of Cleveland (1990) and works by using LOESS (Locally
+Estimated Scatterplot Smoothing) to "iteratively refine estimates" of
+each component. The method was designed to be (i) simple to use, (ii)
+fast to compute, and (iii) allow for specifying seasonal/trend smoothing
+in a continuous way. It was designed for only a single seasonal
+component, although it can be adapted for multiple seasonalities either
+through nested applications or by using the related `mstl()` function
+from the `forecast` package. `stl()` and `mstl()` are non-parametric
+methods not based on any statistical model. They just attempt to fit
+smooth curves to the data.
 
 ### `STR()` - Seasonal-Trend decomposition using Regression
 
-`STR()` from the stR package is an R function developed by Dokumentov and Hyndman (2021) that
-decomposes time series into multiple seasonal components. It is "based
-on a regularized optimization, and is related to ridge regression". It
-attempts to address limitations in other methods by allowing for not
-only multiple seasonal patterns, but also (i) non-integer periods, (ii)
-complex topologies such as modelling holidays, (iii) covariates such as
-temperature and the presence of COVID-19, and even (iv) interaction
-effects between the seasonal components and the covariates. Furthermore,
-as it is based on a statistical model, confidence intervals can be
-computed.
+`STR()` from the stR package is an R function developed by Dokumentov
+and Hyndman (2021) that decomposes time series into multiple seasonal
+components. It is "based on a regularized optimization, and is related
+to ridge regression". It attempts to address limitations in other
+methods by allowing for not only multiple seasonal patterns, but also
+(i) non-integer periods, (ii) complex topologies such as modelling
+holidays, (iii) covariates such as temperature and the presence of
+COVID-19, and even (iv) interaction effects between the seasonal
+components and the covariates. Furthermore, as it is based on a
+statistical model, confidence intervals can be computed.
 
 # Data
 
@@ -105,7 +115,7 @@ visually identify both weekly and daily periods, and it is large enough
 to exhibit multiple-seasonality from both of these periods.
 
 Before decomposing it, it will be useful to get a feel for the data by
-plotting it (Figure 1) and recording any noticeable observations.
+plotting it (Figure 1 and 2 below) and recording any noticeable observations.
 
 ```{r echo=FALSE}
 # READ data
@@ -155,9 +165,45 @@ ggplot(elec_data, aes(x = Period_Start, y = Price)) +
   scale_x_datetime(date_breaks = "1 week", date_labels = "%b %d")
 ```
 
+```{r time-series-plot2, echo=FALSE, fig.cap="Fully labelled NZ Electrical Demand over Christmas '22. Green line represents Wellington's Anniversary - a regional holiday - and the blue line represents Auckland's Anniversary. All holidays are labelled on the day observed."}
+ggplot(elec_data, aes(x = Period_Start, y = Price)) +
+  geom_rect(aes(xmin = as.POSIXct("2023-02-05"), xmax = as.POSIXct("2023-02-11"), 
+              ymin = -Inf, ymax = Inf), fill = "pink", alpha = 0.2) +
+  geom_line() +
+  geom_vline(xintercept = as.POSIXct("2023-01-03"), color = "orange", linetype = "dashed", linewidth = 1) +
+  annotate("text", x = as.POSIXct("2023-01-03"), y = max(elec_data$Price),
+           label = "New Years", color = "orange", vjust = 1, hjust = -0.1) +
+  geom_vline(xintercept = as.POSIXct("2022-12-25"), color = "red", linetype = "dashed", linewidth = 1) +
+  annotate("text", x = as.POSIXct("2022-12-25"), y = max(elec_data$Price), 
+           label = "Christmas", color = "red", vjust = 2, hjust = -0.1) +
+  geom_vline(xintercept = as.POSIXct("2023-02-07"), color = "black", linetype = "dashed", linewidth = 1) +
+  annotate("text", x = as.POSIXct("2023-02-07"), y = max(elec_data$Price),
+           label = "Waitangi", color = "black", vjust = 1, hjust = -0.1) +
+  geom_vline(xintercept = as.POSIXct("2023-01-31"), color = "blue", linetype = "dashed", linewidth = 1) +
+  # annotate("text", x = as.POSIXct("2023-01-31"), y = max(elec_data$Price),
+  #          label = "Auckland Annv.", color = "blue", vjust = 2, hjust = -0.1) +
+  geom_vline(xintercept = as.POSIXct("2023-01-24"), color = "darkgreen", linetype = "dashed", linewidth = 1) +
+  # annotate("text", x = as.POSIXct("2023-01-24"), y = max(elec_data$Price),
+  #          label = "Wellington Annv.", color = "darkgreen", vjust = 3, hjust = -0.1) +
+  annotate("text", x = as.POSIXct("2023-02-08"), y = min(elec_data$Price),
+           label = "Cyclone", color = "deeppink", vjust = -1, hjust = -0) +
+  labs(
+    title = "New Zealand Electrical Demand (fully labelled)",
+    subtitle = "10 weeks from December 5, 2022",
+    y = "Electricity Demand (GWh)"
+  ) +
+  xlab("") + # no x label
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  scale_x_datetime(date_breaks = "1 week", date_labels = "%b %d")
+```
+
 **Noticeable observations**
 
-There is clear daily and weekly seasonality present (recall that the data begins on a Monday):
+There is clear daily and weekly seasonality present (recall that the
+data begins on a Monday):
 
 -   There is daily variation of around 0.5-1 GWh, with peaks during the
     day and troughs during the night. Furthermore, there appears to be
@@ -166,28 +212,37 @@ There is clear daily and weekly seasonality present (recall that the data begins
 -   Weekly seasonality is most noticeable by the dip in demand over the
     weekends (by $\sim0.5 \texttt{GWh}$ on average).
 
-As for holidays: 
+As for holidays:
 
--   The Christmas/New Years holiday period had a very noticeable impact on electricity demand, with a sudden drop of around 0.5-1 GWh leading up
-to Christmas, and a gradual buildup to previous electricity demand in
-the weeks afterwards.
+-   The Christmas/New Years holiday period had a very noticeable impact
+    on electricity demand, with a sudden drop of around 0.5-1 GWh
+    leading up to Christmas, and a gradual buildup to previous
+    electricity demand in the weeks afterwards.
 
--   Furthermore, Waitangi day (a New Zealand public holiday) was observed on
-the 7th of February 2022. Its effect is not immediately obvious in the
-above plot, but will be made clearer with the decompositions.
+-   Furthermore, Waitangi day (a New Zealand public holiday) was
+    observed on the 7th of February 2022. Its effect is not immediately
+    obvious in the above plot, but will be made clearer with the
+    decompositions.
 
--   There is a small jump in demand on the second to last week. One possible explanation may be New Zealand schools beginning to open up after the school holidays, from the 31st of January.
-
+-   There is a small jump in demand on the second to last week. One
+    possible explanation may be New Zealand schools beginning to open up
+    after the school holidays, from the 31st of January.
 
 # Method
 
-First, results from the three decomposition methods: `stl()`, `mstl()`, and `STR()` will be presented and briefly discussed. Since the data shows only a mild increasing trend (in the last 7 weeks in particular), an additive model will be assumed and the methods will be applied to the raw (rather than the logged) data. Afterwards, they will be compared in three ways:
+First, results from the three decomposition methods: `stl()`, `mstl()`,
+and `STR()` will be presented and briefly discussed. Since the data
+shows only a mild increasing trend (in the last 7 weeks in particular),
+an additive model will be assumed and the methods will be applied to the
+raw (rather than the logged) data. Afterwards, they will be compared in
+three ways:
 
-1) By what features they pick out,
-2) By an ACF/PACF investigation of their residuals, and
-3) By their ability to forecast the next week's worth of data.
+1)  By what features they pick out,
+2)  By an ACF/PACF investigation of their residuals, and
+3)  By their ability to forecast the next week's worth of data.
 
-Lastly, practical implications will be discussed as well as possible extensions to this analysis.
+Lastly, practical implications will be discussed as well as possible
+extensions to this analysis.
 
 # Result
 
@@ -212,11 +267,19 @@ elec_msts <- forecast::msts(as.vector(elec_data$Price),
 
 ## Decomposition using stl() and mstl()
 
-Note: `stl()` and `mstl()` require setting the 'smoothing parameters' `s.window` for the seasonal component, and `t.window` for the trend component. The higher the smoothing window, the less variation will be picked up. The lower the smoothing window the more variation will be picked.
+Note: `stl()` and `mstl()` require setting the 'smoothing parameters'
+`s.window` for the seasonal component, and `t.window` for the trend
+component. The higher the smoothing window, the less variation will be
+picked up. The lower the smoothing window the more variation will be
+picked.
 
-After experimenting with several combinations (see Appendix), the default `t.window` and an `s.window` of "periodic" was decided. This combination balanced between overfitting on variation in the data while nevertheless capturing the overall trend and pattern.
+After experimenting with several combinations (see Appendix), the
+default `t.window` and an `s.window` of "periodic" was decided. This
+combination balanced between overfitting on variation in the data while
+nevertheless capturing the overall trend and pattern.
 
-The `s.window` and `t.window` parameters were set with the exact same settings for `mstl()` for a fair comparison.
+The `s.window` and `t.window` parameters were set with the exact same
+settings for `mstl()` for a fair comparison.
 
 \newpage
 \blandscape
@@ -232,75 +295,107 @@ elec_stl %>% autoplot() +
         plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm"))
 ```
 
-
 \newpage
 
-
-```{r setup, include=FALSE} 
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 ```
 
-
 ```{r fig.width=11, fig.height=8, echo=FALSE, dpi=300, fig.cap="MSTL Decomposition with weekly/daily periods, s.window=periodic"}
 elec_mstl <- mstl(elec_msts, s.window="periodic")
-elec_mstl %>% autoplot() + 
+p <- elec_mstl %>% autoplot() + 
   ggtitle("MSTL Decomposition with weekly/daily periods, s.window=periodic") +
   theme(plot.title = element_text(size = 16, face = "bold"),
         axis.title = element_text(size = 14),
         axis.text = element_text(size = 12),
         strip.text = element_text(size = 14),
         plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm"))
+
+# p <- p + geom_hline(data = data.frame(parts = "Remainder", y = 0),
+#                     aes(yintercept = y),
+#                     linetype = "solid",
+#                     color = "black")
+
+p
 ```
 
 \newpage
 \elandscape
 
-Figure 2 and Figure 3 on the previous pages show decompositions using `stl()` and `mstl()`.
+Figure 2 and Figure 3 on the previous pages show decompositions using
+`stl()` and `mstl()`.
 
 **Observations**:
 
-- The trend lines look very similar, even though different seasonal components were extracted.
+-   The trend lines look very similar, even though different seasonal
+    components were extracted.
 
-- `stl()` has combined both the daily and the weekly seasonality into it's 'seasonal' component.
+-   `stl()` has combined both the daily and the weekly seasonality into
+    it's 'seasonal' component.
 
-- The daily seasonal component of `mstl()` very clearly shows the morning/evening 'sub-peaks', possibly showing effects such as e.g. when people wake up and turn on the kettle.
+-   The daily seasonal component of `mstl()` very clearly shows the
+    morning/evening 'sub-peaks', possibly showing effects such as e.g.
+    when people wake up and turn on the kettle.
 
-- The weekly seasonal component has picked shows a "scaly hump" pattern.
+-   The weekly seasonal component has picked shows a "scaly hump"
+    pattern.
 
-- The residuals show clear cyclical patterns, changing almost every week. This suggests there is significant autocorrelation and week-by-week seasonality left in the data.
+-   The residuals show clear cyclical patterns, changing almost every
+    week. This suggests there is significant autocorrelation and
+    week-by-week seasonality left in the data.
 
-- The residuals show a noticeable downward spike on the right, showing the effect of Waitangi Day. This is the largest single effect noticeable in the residuals. It showcases the effect Waitangi day has in the morning in particular, presumably as people sleep in and use less electricity in the mornings!
+-   The residuals show a noticeable downward spike on the right, showing
+    the effect of Waitangi Day. This is the largest single effect
+    noticeable in the residuals. It showcases the effect Waitangi day
+    has in the morning in particular, presumably as people sleep in and
+    use less electricity in the mornings!
 
-- The residuals are identical in both `stl()` and `mstl()` (see Appendix for proof).
+-   The residuals are identical in both `stl()` and `mstl()` (see
+    Appendix for proof).
 
 ## Decomposition using STR()
 
-(*Sidenote*: Running `STR()` definitely takes longer than `stl()`. This time difference is benchmarked in the appendix, and would be concerning for larger datasets.)
+(*Sidenote*: Running `STR()` definitely takes longer than `stl()`. This
+time difference is benchmarked in the appendix, and would be concerning
+for larger datasets.)
 
-Figure 4 on the following pages shows decomposition using `STR()`. In particular, `AutoSTR()` was used with `gapCV` set to 48.
+Figure 4 on the following pages shows decomposition using `STR()`. In
+particular, `AutoSTR()` was used with `gapCV` set to 48.
 
-The STR() decomposition
-shows, from the top down:
+The STR() decomposition shows, from the top down:
 
--   A red "trend" component overlaid on the raw data.This component appears to be a collection of lines.
+-   A red "trend" component overlaid on the raw data.This component
+    appears to be a collection of lines.
 
--   A daily seasonal component. Compared to the daily component from `mstl()`, it is noticeably missing the morning sub-peak and only extracting the evening sub-peak.
+-   A daily seasonal component. Compared to the daily component from
+    `mstl()`, it is noticeably missing the morning sub-peak and only
+    extracting the evening sub-peak.
 
--   A weekly seasonal component. Compared to `mstl()`, this is *much* "spikier"! This might be implying that electricity usage in the mornings is actually more of a weekly effect than a daily effect. For example, it could mean that people wake up at different times depending on the day, but may tend to go to sleep at around the same time.
+-   A weekly seasonal component. Compared to `mstl()`, this is *much*
+    "spikier"! This might be implying that electricity usage in the
+    mornings is actually more of a weekly effect than a daily effect.
+    For example, it could mean that people wake up at different times
+    depending on the day, but may tend to go to sleep at around the same
+    time.
 
--   A random (i.e. residual) component. It shares similarities with the ones from `stl()` and `mstl()`, however there are again slight differences. In particular, the 'Waitangi day residual', while still pronounced, is less so compared to `mstl()`.
+-   A random (i.e. residual) component. It shares similarities with the
+    ones from `stl()` and `mstl()`, however there are again slight
+    differences. In particular, the 'Waitangi day residual', while still
+    pronounced, is less so compared to `mstl()`.
 
--   A fit/forecast in blue, which is a combination of the above seasonal and trend components. This is what information the model has extracted.
+-   A fit/forecast in blue, which is a combination of the above seasonal
+    and trend components. This is what information the model has
+    extracted.
 
 ```{r echo=FALSE}
-elec_str <- AutoSTR(elec_msts, gapCV = 48, confidence = NULL)
+#elec_str <- AutoSTR(elec_msts, gapCV = 48, confidence = NULL)
 ```
 
 \blandscape
 \newpage
 
 ```{r echo=FALSE, fig.width=11.69, fig.height=8.27, echo=FALSE, dpi=300, fig.cap="STR Decomposition of New Zealand electricity demand from 5 December 2022."}
-plot(elec_str)
+#plot(elec_str)
 ```
 
 \elandscape
@@ -312,48 +407,68 @@ plot(elec_str)
 
 Both methods picked out very similar features. However as discussed:
 
-1) `stl()`/`mstl()` emphasized a 'Waitangi day effect' in the residuals more than `STR()`, which shows it may be more useful for anomaly/holiday detection.
+1)  `stl()`/`mstl()` emphasized a 'Waitangi day effect' in the residuals
+    more than `STR()`, which shows it may be more useful for
+    anomaly/holiday detection.
 
-2) `STR()` emphasized the morning subpeak and extracted this into it's weekly component, instead of the daily component like as was done with `stl()`.
+2)  `STR()` emphasized the morning subpeak and extracted this into it's
+    weekly component, instead of the daily component like as was done
+    with `stl()`.
 
-Given these methods pick out different effects, they could be used to complement each other.
+Given these methods pick out different effects, they could be used to
+complement each other.
 
 ### Analysis of Residuals
 
-The PACF/ACF of each decomposition's residuals will be plotted, followed by a discussion. Recall that `mstl()` the identical residuals as `stl()` (see Appendix), so the residuals from one of these needs to be analysed. 
+The PACF/ACF of each decomposition's residuals will be plotted, followed
+by a discussion. Recall that `mstl()` the identical residuals as `stl()`
+(see Appendix), so the residuals from one of these needs to be analysed.
 
-```{r echo=FALSE, fig.cap="PACF of residuals of stl/mstl decomposition"}
+\blandscape
+\newpage
+
+```{r echo=FALSE, fig.width=11, fig.height=8, fig.cap="ACF and PACF plots of residuals for stl/mstl and STR decompositions", warning=FALSE}
+par(mfrow=c(2,2), mar=c(4,4,3,1), oma=c(0,0,3,0))
+
 remainder_stl <- elec_stl$time.series[, "remainder"]
-pacf(remainder_stl, main="PACF of residuals of stl/mstl decomposition")
+
+
+pacf(remainder_stl, main="", ylab="PACF")
+title("PACF of residuals of stl/mstl", line=1)
+
+acf(remainder_stl, main="", ylab="ACF")
+title("ACF of residuals of stl/mstl", line=1)
+
+#remainder_str <- unlist(elec_str$output$random)
+
+# pacf(remainder_str, main="", ylab="PACF")
+# title("PACF of residuals of STR", line=1)
+# 
+# acf(remainder_str, main="", ylab="ACF")
+# title("ACF of residuals of STR", line=1)
+
+mtext("ACF and PACF plots of residuals", outer=TRUE, cex=1.5, line=1)
 ```
 
-```{r, echo=FALSE, fig.cap="ACF of residuals of stl/mstl decomposition"}
-acf(remainder_stl, main="ACF of residuals of stl/mstl decomposition")
-```
+\elandscape
+\newpage
 
-
-```{r echo=FALSE, fig.cap="PACF of residuals of STR decomposition"}
-remainder_str <- unlist(elec_str$output$random)
-pacf(remainder_str, main="PACF of residuals of STR decomposition")
-```
-
-```{r echo=FALSE, fig.cap="ACF of residuals of STR decomposition"}
-acf(remainder_str, main="ACF of residuals of STR decomposition")
-```
-
-The PACF plots are mostly similar, showing significant first and second lags (strongly indicating an AR(2) model may be appropriate), and ...
+The PACF plots are mostly similar, showing significant first and second
+lags (strongly indicating an AR(2) model may be appropriate), and ...
 
 The ACF plots show more differences, for example ...
 
 The above plots show that ...
 
-### Short-term Forecasting
+<!-- ### Short-term Forecasting -->
 
-**TODO**
+<!-- **TODO** -->
 
-```{r}
-# forecast_msts <- stlf(elec_msts)
-```
+<!-- ```{r} -->
+
+<!-- # forecast_msts <- stlf(elec_msts) -->
+
+<!-- ``` -->
 
 # Conclusions
 
@@ -403,13 +518,13 @@ Journal of Official Statistics, 6(1), 3–33. <http://bit.ly/stl1990>
 It first uses iterative Loess smoothing to obtain an estimate of the
 trend, and then Loess smoothing again to extract a changing additive
 seasonal component. The "outer loop" deals with robustness, and the
-"inner loop" deals with ???. The trend is then re-predicted using the
-predicted seasonal components, then the seasonal component is
-re-predicted using the predicted trend component. This converges to an
-estimate of trend and seasonal components. Note that since it uses
-loess, it fits a smooth curve but one that is not necessarily well
-defined when extrapolating out. Confidence intervals cannot be predicted
-since it is "model-free".
+"inner loop" fits the actual components themselves. The trend is then
+re-predicted using the predicted seasonal components, then the seasonal
+component is re-predicted using the predicted trend component. This
+converges to an estimate of trend and seasonal components. Note that
+since it uses loess, it fits a smooth curve but one that is not
+necessarily well defined when extrapolating out. Confidence intervals
+cannot be predicted since it is "model-free".
 
 ## `STR()` technical details
 
@@ -424,8 +539,9 @@ since it is "model-free".
 # 
 # benchmark_results <- microbenchmark(
 #   stl = stl(elec_ts, s.window="periodic"),
+#   mstl = mstl(elec_msts, s.window="periodic"),
 #   str = AutoSTR(elec_msts, gapCV = 48, confidence = 0.95),
-#   times = 10
+#   times = 5
 # )
 # 
 # print(benchmark_results)
@@ -440,19 +556,25 @@ slower than `STR()` on this dataset.
 
 ## An error running the Robust version
 
-With R at the latest (as of 24/10/10) version: 4.4.1, and `stR` at the latest version: 0.7, running the 'Robust' version of stR by setting `robust=TRUE` caused R to either crash unexpectedly or return an error message.
+With R at the latest (as of 24/10/10) version: 4.4.1, and `stR` at the
+latest version: 0.7, running the 'Robust' version of stR by setting
+`robust=TRUE` caused R to either crash unexpectedly or return an error
+message.
 
 Specifically, the line
 `AutoSTR(elec_msts_all, gapCV = 48, confidence = NULL, robust=TRUE)`
-will crash if the number of weeks is set to $10$, and return an error message if weeks is set to $3$:
+will crash if the number of weeks is set to $10$, and return an error
+message if weeks is set to $3$:
 
-**as(<dgCMatrix>, "dgTMatrix")' is deprecated. Use 'as(.,**
+**as(**<dgCMatrix>, "dgTMatrix")' is deprecated. Use 'as(.,
 **"TsparseMatrix")' instead. See help("Deprecated") and**
 **help("Matrix-deprecated").**
 
 ## Finding optimal `s.window`/`t.window`
 
-The following code was generated by Claude 3.5 Sonnet, and iterates through various combinations of `s.window` and `t.window`, plotting graphs of the results.
+The following code was generated by Claude 3.5 Sonnet, and iterates
+through various combinations of `s.window` and `t.window`, plotting
+graphs of the results.
 
 ```{r}
 library(ggplot2)
@@ -536,13 +658,15 @@ stl_window_iterator <- function(ts_data,
 #output <- stl_window_iterator(elec_ts)
 ```
 
-## stl() and mstl() have identical residuals
+## stl() and mstl() have identical residuals and trend
 
 ```{r}
-head(remainder_stl)
-head(remainder <- elec_mstl[, "Remainder"])
+# Remainder/Residuals
+head(remainder_stl) # stl
+head(elec_mstl[, "Remainder"]) # mstl
+
+#Trend
+
+head(elec_stl$time.series[, "trend"])
+head(elec_mstl[,"Trend"]) #mstl
 ```
-
-
-
-
