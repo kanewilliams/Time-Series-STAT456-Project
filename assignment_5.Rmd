@@ -1,5 +1,5 @@
 ---
-title: "Assignment 5 - Decomposing New Zealand Electrical Demand using stl(), mstl(), and STR()"
+title: "Assignment 5 - Comparing Decomposition Techniques: stl(), mstl(), and STR() on New Zealand Electricity Demand Data"
 author: "Kane Williams (pkw21@uclive.ac.nz)"
 output:
   bookdown::pdf_document2:
@@ -49,7 +49,7 @@ New Zealand's electrical demand (two thirds of which are from households
 and industry (MBIE, 2024)) is influenced by factors such as temperature,
 time-of-day, day-of-the-week, day-of-the-year, and the presence of
 holidays. This means that there are multiple seasonal components which potentially have
-interaction effects with each other. Using the above techniques, it
+interaction effects with each other. Using the to-be-discussed techniques, it
 will be possible to understand how each seasonal
 component contributes to overall demand.
 
@@ -323,12 +323,12 @@ Figure 3 and Figure 4 on the previous pages show decompositions using
 
 **Observations**:
 
--   The trend lines are exactly the same (see Appendix for proof), even though different seasonal components were extracted.
+-   The trend lines and residuals are exactly the same (see Appendix for proof), even though different seasonal components were extracted.
 
 -   `stl()` has combined both the daily and the weekly seasonality into
-    it's 'seasonal' component.
+    its 'seasonal' component.
 
--   The daily seasonal component of `mstl()` very clearly shows the
+-   All seasonal components clearly show
     morning/evening 'sub-peaks', possibly showing effects such as e.g.
     when people wake up and turn on the kettle.
 
@@ -336,19 +336,16 @@ Figure 3 and Figure 4 on the previous pages show decompositions using
     pattern.
 
 -   The residuals still show clear cyclical patterns, changing almost every
-    week. This suggests there is significant autocorrelation and
-    week-by-week seasonality left in the data.
+    week. This suggests there is significant autocorrelation remaining, and
+    week-be-week seasonality (not shared across all weeks) left in the data.
 
 -   The residuals show a noticeable downward spike on the right, showing
     the effect of Waitangi Day. This is the largest single effect
     noticeable in the residuals. The effect is in the morning in particular, presumably as people sleep in and use less electricity in the mornings!
 
--   The residuals are identical in both `stl()` and `mstl()` (see
-    Appendix for proof).
-
 ## Decomposition using STR()
 
-Figure 5 on the following page shows decomposition using `STR()`. `AutoSTR()` was used with `gapCV` set to 48.
+Figure 5 on the following page shows decomposition using `STR()`. `AutoSTR()` was used with `gapCV` set to 48. Note that there is a Robust version of `STR()` that better handles outliers, but due to technical difficulties it was not able to be experimented with, see the appendix for more.
 
 The STR() decomposition shows, from the top down:
 
@@ -395,7 +392,7 @@ plot(elec_str)
 Both methods picked out very similar features. However as discussed:
 
 1)  `stl()`/`mstl()` emphasized a 'Waitangi day effect' in the residuals
-    more than `STR()` In general, it is better able to identify 'local outliers' compared with `STR()`. Another example is the the high peak the Thursday before Waitangi: this is picked up as an obvoious blip in the `mstl()` residuals, but is not readily apparent in the `STR()` residuals. This shows that `mstl()` may be more useful for anomaly/holiday detection.
+    more than `STR()` In general, it is better able to identify 'local outliers' compared with `STR()`. Another example is the the high peak the Thursday before Waitangi: this is picked up as an obvious blip in the `mstl()` residuals, but is not readily apparent in the `STR()` residuals. This shows that `mstl()` may be more useful for local anomaly/holiday detection.
 
 2)  `STR()` extracted the 'morning sub-peak' into its
     weekly component instead of the daily component as was done
@@ -438,22 +435,24 @@ mtext("ACF and PACF plots of residuals", outer=TRUE, cex=1.5, line=1)
 
 **Similarities**
 
-The PACF plots are mostly similar, shows very high first and second
-lags (strongly indicating an AR(1) or AR(2) model may be appropriate).
+The PACF plots are mostly similar, showing very high first and second
+lags (strongly indicating that an AR(1) or AR(2) model may be appropriate).
 
 The ACF plots likewise tail off, giving further evidence that an AR model could fit both sets of residuals.
 
 The first ACF and PACF lag is very strong in both models. This suggests that each point has a very strong correlation to the point immediately before it. This makes sense, as the electricity usage half an hour ago is likely very similar to the current usage.
 
-Lags 3, 5, 7 are also significant in both PACF graphs, which possibly means there are higher AR terms, or even an MA component. 
+Lags 3, 5, 7 are also significant in both PACF graphs, which possibly means there are higher order AR terms, or even MA components. 
 
 **Differences**
 
-There are more points outside the lines of significance in the `STR()` ACF/PACF plots, showing that it is not capturing some autocorrelational structures in the data. The 9th lag in the `STR()` PACF plot is much more noticeable compared to in the `mstr()` plot. This may be due to noise, but could also indicate that electricity usage 4.5 hours ago provides more information about electricity usage now, even accounting for the past half-hour's data, which is not implausible.
+There are more points outside the lines of significance in the `STR()` ACF/PACF plots, showing that `STR()` is arguably not capturing more autocorrelational structures in the data compared to `mstl()`.
 
-`mstl()` has captured more of the variance in the data. This possible means that it is just overfitting to the noise, however, since it is non-parametric and just fits smooth curves to the data.
+The 9th lag in the `STR()` PACF plot is much more noticeable compared with the `mstr()` PACF plot. This may be due to noise, but could also indicate that electricity usage 4.5 hours ago provides more information about electricity usage now, even accounting for the past half-hour's data, which is not implausible.
 
-Overall, both ACF/PACF plots of the residuals are similar, showing a strong autocorrelational AR(1)/AR(2) structure, with only small differences due to the way these methods model their components.
+`mstl()` has captured more of the variance in the data. This possible means that it is just overfitting the data, since it is non-parametric and just fits smooth curves to the data.
+
+Overall, both ACF/PACF plots of both the residuals are similar, showing a strong autocorrelational AR(1)/AR(2) structure, with only small differences due to the way these methods model their components.
 
 ### Benchmark
 
@@ -466,7 +465,7 @@ benchmark_results <- microbenchmark(
   stl = stl(elec_ts, s.window="periodic"),
   mstl = mstl(elec_msts, s.window="periodic"),
   str = AutoSTR(elec_msts, gapCV = 48, confidence = 0.95),
-  times = 2
+  times = 5
 )
 
 #print(benchmark_results)
@@ -474,7 +473,7 @@ benchmark_results <- microbenchmark(
 autoplot(benchmark_results)
 ```
 
-Figure 7 shows that `stl()` is at least 5 orders of magnitude
+Figure 7 on the next page shows that `stl()` is at least 5 orders of magnitude
 slower than `STR()` on this dataset. In particular, `stl()` takes around 1ms to run, `mstl()` takes around 5ms, and `STR()` takes over a minute!
 
 This means that if speed is required: for example if new decompositions are required rapidly such as in a production system where electricity demand is constantly predicted using new data, then the LOESS-based methods will definitely have an advantage. 
@@ -483,29 +482,28 @@ Since `STR()` performs regression over a sparse matrix, it is theoretically poss
 
 # Conclusions
 
-`STR()` appears to be better fit for the purpose if the goal is to
+`STR()` initially appears to be better fit for the purpose if the goal is to
 understand electricity demand. Out of the box it provides an easily
 readable plot of the seasonal components, provides interesting insight into how mornings affect electricity demand, and the confidence intervals
 are an added bonus. However, it is several orders of magnitude slower
-than `stl()`. Furthermore, while it picks up some features/residuals such as the Waitangi day residual, certain residuals no not feature as prominently compared with `stl()`, which may perform 'local' anomaly detection better.
+than `stl()`. Furthermore, while it picks up some features/residuals such as the Waitangi day residual, this and other features/holidays do not show up as prominently in the residual plot compared with `stl()`, showing that `stl()` may perform 'local' anomaly detection better.
 
-Overall, it seems that both tsechniques are valuable, can complement each other, and both have their place in the time series analyst's toolkit depending on the use case.
+Overall, it seems that both techniques are valuable, can complement each other, and both have their place in the time series analyst's toolkit depending on the use case.
 
-## Possible Extensions
+## Next Steps
 
-There are many possible extensions to the above analyses. Some could be:
+There are many ways to extend the above analyses. Some candidates are:
 
--   Performing an analysis over a period relatively devoid of holidays/structural breaks to see how it performs.
--   Performing an analysis for long-term data, where yearly effects
-    could be incorporated.
--   Incorporating a temperature covariate to the models.
--   Incorporating holidays as an additional component.
--   Using the logged data instead.
+-   Performing an analysis over an uneventful period.
+-   Performing an analysis for long-term data with yearly seasonal effects.
+-   Incorporating temperature/holiday covariates to the models.
 -   Comparing the forecasted results.
 -   Combining decompositions, for example using `STR()` first then decomposing the residuals using `mstl()`.
 -   Investigate how each demand component (households/commercial/industry) contributes to overall electrical demand in New Zealand.
 
 # Bibliography
+
+Bandara, K., Hyndman, R. J., & Bergmeir, C. (2021). MSTL: A Seasonal-Trend Decomposition Algorithm for Time Series with Multiple Seasonal Patterns. arXiv preprint arXiv:2107.13462.
 
 Cleveland, R. B., Cleveland, W. S., McRae, J. E., & Terpenning, I. J.
 (1990). STL: A seasonal-trend decomposition procedure based on loess.
@@ -524,24 +522,24 @@ MBIE [Ministry of Business, Innovation & Employment.] (2024). Electricity statis
 ## `stl()` technical details
 
 `stl()` uses iterative Loess smoothing to obtain an estimate of the
-trend. The equation is forms is:
+trend. The equation it forms is:
 
 $$y_t = \hat{T}_t + \hat{S}_t + \hat{R}_t$$
 
 where $\hat{T}_t$ is the estimated trend, $\hat{S}_t$ is the estimated seasonality, and $\hat{R}_t$ is the residual/remainder/irregular component.
 
-Next, it cycles through two loops:
+First, it initializes these estimates. Next, it cycles through two loops:
 
 - The "outer loop" deals with robustness, and
 - the "inner loop" fits the actual components themselves.
 
 The trend is then
-re-predicted using just the predicted seasonal components, then the seasonal
-component is re-predicted using the predicted trend component. This repeats several times, until there is a suitable convergance of estimated trend and seasonal components.
+re-predicted (in the inner loop) using just the predicted seasonal components, then the seasonal
+component is re-predicted using the predicted trend component. This repeats several times, until there is suitable convergence of estimated trend and seasonal components.
 
 Note that since it uses loess, it fits a smooth curve but one that is not
-necessarily well defined when extrapolating out. Confidence intervals
-cannot be predicted since it is "model-free"/non-parametric.
+necessarily well defined when extrapolating out. Without additional techniques Confidence intervals
+cannot be predicted, as it is non-parametric method.
 
 `mstl()` does the same as the above, however there are multiple seasonal components instead:
 
@@ -555,11 +553,33 @@ For more information along with some beautiful animations please see the excelle
 
 ## `STR()` technical details
 
-`str` works by ...
+`STR()` decomposes a time series plot into the following components:
+
+$$
+y_t = T_t + \sum_{i=1}^I S_t^{(i)} + \sum_{p=1}^P \phi_{p,t}z_{t,p} + R_t,
+$$
+
+where $T_t$ is the trend, $S_t^{(i)}$ are the various seasonal components, $\phi_{p,t}z_{t,p}$ represent covariate effects (such as temperature), and $R_t$ is the residual component. Its equation is deceptively similar to the one for `stl()`, even though the underlying technique is entirely different.
+
+`STR()` works by performing an optimization, similar to minimizing least squares, over a large sparse matrix. This matrix contains information about "smoothness" of the Trend and Seasonal components. Smoothness means that the second derivative of each component is small. In particularly, the second derivative is drawn from $\mathcal{N}(0, \sigma^2)$ where the variance $\sigma^2$ acts like a smoothing hyperparameter.
+
+Thus as an example, a sawtooth-like wave would not be a good fit for a seasonal component because it would have many sharp turns and the second derivative would not fit as described.
+
+Since `STR()` is parametric and actually assumes something about the data (in particular that it has "smooth" components), `STR()` has the ability to produce confidence intervals.
+
+Furthermore, `STR()` also has:
+
+- A **Regularization** term in the optimization equation, which the authors claim makes `STL()` perform a type of ridge regression.
+
+- The usage of **Cross-Validation** to find the optimal hyperparameters, and
+
+- The ability to define **Semi-Arbitrary Topologies**, for example (i) to include working holidays, and (ii) yearly seasonal effects. This is done by defining 'Knots' in the code.
+
+For more information, please refer to the original paper by Dokumentov and Hyndman (2021), or the vignette by Dokumentov (2024).
 
 ## An error running the Robust version
 
-With R at the latest (as of 24/10/10) version: 4.4.1, and `stR` at the
+With R version: 4.4.1, and `stR` at the
 latest version: 0.7, running the 'Robust' version of stR by setting
 `robust=TRUE` caused R to either crash unexpectedly or return an error
 message.
@@ -573,7 +593,7 @@ message if weeks is set to $3$:
 - **"TsparseMatrix")' instead. See help("Deprecated") and**
 - **help("Matrix-deprecated").**
 
-Unfortunately, the Robust version was not able to be experimented with. Given more time, the cause of this bug would have been investigated.
+Unfortunately due to time, the Robust version was not able to be experimented with. With more time, the cause of this bug would have been more thoroughly investigated.
 
 ## Finding optimal `s.window`/`t.window`
 
